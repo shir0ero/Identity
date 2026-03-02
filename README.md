@@ -1,98 +1,57 @@
-# BiteSpeed Identity Reconciliation
+# Identity Reconciliation Service
 
-A Node.js + TypeScript service for contact identity reconciliation.
+### Bitespeed Backend Task Submission
 
-## Tech Stack
+---
 
-- Node.js + Express
-- TypeScript
-- Prisma ORM
-- PostgreSQL
+## 🔍 Overview
 
-## Project Structure
+This project implements an **Identity Reconciliation Service** that links customer contact details across multiple purchases.
+
+Customers may place orders using different emails or phone numbers. This service identifies related contacts and consolidates them into a unified customer identity using a primary–secondary relationship model.
+
+The system exposes a REST API endpoint that:
+
+* Detects existing contacts using email or phone number
+* Links related contacts
+* Maintains the oldest contact as primary
+* Converts newer linked contacts to secondary
+* Returns a consolidated identity response
+
+---
+
+## 🌐 Hosted API
+
+**Production Endpoint:**
 
 ```
-bitespeed-identity/
-├── prisma/
-│   └── schema.prisma
-├── src/
-│   ├── controllers/
-│   │   └── identifyController.ts
-│   ├── routes/
-│   │   └── identifyRoutes.ts
-│   ├── services/
-│   │   └── contactService.ts
-│   ├── utils/
-│   │   ├── findRoot.ts
-│   │   └── prisma.ts
-│   ├── app.ts
-│   └── server.ts
-├── .env
-├── package.json
-└── README.md
+POST https://identity-service-yymq.onrender.com/identify
 ```
 
-## Environment Variables
+---
 
-Create a `.env` file in the project root:
+## 📌 API Specification
 
-```env
-PORT=3000
-DATABASE_URL="postgresql://<user>:<password>@<host>:<port>/<db>?sslmode=require"
+### Endpoint
+
+```
+POST /identify
 ```
 
-## Installation & Run
+### Request Body (JSON)
 
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Generate Prisma client:
-
-   ```bash
-   npm run prisma:generate
-   ```
-
-3. Push schema to database:
-
-   ```bash
-   npx prisma db push
-   ```
-
-4. Run in development mode:
-
-   ```bash
-   npm run dev
-   ```
-
-## Available Scripts
-
-- `npm run dev` — Start development server with auto-reload
-- `npm run build` — Compile TypeScript to `dist/`
-- `npm start` — Run compiled server from `dist/server.js`
-- `npm run prisma:generate` — Generate Prisma client
-- `npm run prisma:migrate` — Run Prisma migrations (dev)
-
-## API
-
-### `POST /identify`
-
-Base URL (local): `http://localhost:3000`
-
-#### Request Body
-
-At least one of `email` or `phoneNumber` is required.
+At least one of `email` or `phoneNumber` must be provided.
 
 ```json
 {
-  "email": "test@gmail.com",
-  "phoneNumber": "123456"
+  "email": "string (optional)",
+  "phoneNumber": "string (optional)"
 }
 ```
 
-#### Success Response (`200`)
+---
+
+### Successful Response (200 OK)
 
 ```json
 {
@@ -100,35 +59,35 @@ At least one of `email` or `phoneNumber` is required.
     "primaryContactId": 1,
     "emails": ["test@gmail.com"],
     "phoneNumbers": ["123456"],
-    "secondaryContactIds": []
+    "secondaryContactIds": [2]
   }
 }
 ```
 
-#### Error Response (`400`)
+---
 
-```json
-{
-  "error": "Provide email or phoneNumber"
-}
-```
+## 🧠 How It Works
 
-## Reconciliation Logic (Summary)
+1. The service receives contact details.
+2. It searches for existing records with matching email or phone number.
+3. If no match is found:
 
-1. Find contacts matching email and/or phone number.
-2. If no match exists, create a new **primary** contact.
-3. Resolve each match to its root primary contact.
-4. Select the oldest root as the final primary.
-5. Convert any other primary roots to **secondary** linked to final primary.
-6. If incoming email/phone is new, create a new secondary contact.
-7. Return consolidated contact response.
+   * A new primary contact is created.
+4. If matches are found:
 
-## Local Testing (Postman)
+   * All related contacts are grouped.
+   * The oldest contact remains primary.
+   * Other contacts are marked as secondary.
+   * New information is stored as a secondary contact if needed.
+5. A consolidated identity response is returned.
 
-1. Method: `POST`
-2. URL: `http://localhost:3000/identify`
-3. Headers: `Content-Type: application/json`
-4. Body (raw JSON):
+---
+
+## 🧪 Example Test Cases
+
+### Case 1: New Contact
+
+**Request**
 
 ```json
 {
@@ -137,9 +96,92 @@ At least one of `email` or `phoneNumber` is required.
 }
 ```
 
-## Build for Production
+**Response**
 
-```bash
-npm run build
-npm start
+```json
+{
+  "contact": {
+    "primaryContactId": 2,
+    "emails": ["test@gmail.com"],
+    "phoneNumbers": ["123456"],
+    "secondaryContactIds": []
+  }
+}
 ```
+
+---
+
+### Case 2: Same Phone, Different Email
+
+**Request**
+
+```json
+{
+  "email": "second@gmail.com",
+  "phoneNumber": "123456"
+}
+```
+
+**Response**
+
+```json
+{
+  "contact": {
+    "primaryContactId": 2,
+    "emails": ["test@gmail.com", "second@gmail.com"],
+    "phoneNumbers": ["123456"],
+    "secondaryContactIds": [3]
+  }
+}
+```
+
+---
+
+### Case 3: Linking Two Primary Contacts
+
+If two previously separate identities become linked via shared email/phone:
+
+* The oldest remains primary
+* The newer becomes secondary
+* All emails and phone numbers are merged
+
+---
+
+## 🏗 Architecture
+
+```
+Client Request
+      ↓
+Express API (/identify)
+      ↓
+Identity Reconciliation Logic
+      ↓
+PostgreSQL Database (Render)
+```
+
+---
+
+## 🛠 Tech Stack
+
+* Node.js
+* Express.js
+* TypeScript
+* Prisma ORM
+* PostgreSQL (Render)
+* Render (Cloud Deployment)
+
+---
+
+## 🚀 Deployment Details
+
+* Backend hosted on Render
+* PostgreSQL database hosted on Render
+* Internal database networking used for production
+* Prisma ORM for schema management and queries
+
+---
+
+## 👨‍💻 Author
+
+Ayush Raj
+GitHub: https://github.com/shir0ero/Identity
